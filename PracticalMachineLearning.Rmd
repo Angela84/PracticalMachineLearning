@@ -1,0 +1,60 @@
+---
+title: "Practical Machine Learning Assignment"
+author: "AO"
+date: "Tuesday, July 21, 2015"
+output: html_document
+---
+##Summary
+The aim of the project is to analyse data from a case study on the way of performing weight lifting. This is verified based on the variable -classe-. In particular, 6 partecipants were asked to perform this exercise in 5 different manners, either correctly or uncorrectly. The goal is to build a model which would make the exact predictions on the way the weight lifting has been performed in each one of 20 specific cases. 
+
+##Exploratory analysis
+Before starting the analysis, it is pivotal to look at the data. The train set is composed of 160 variables and 19622 observations, while the test set only contains 20 values for each dimension.
+
+```{r, echo=TRUE}
+train <- read.csv("pml-training.csv", na.strings=c("", "NA", "NULL"), header=TRUE)
+test <- read.csv("pml-testing.csv", na.strings=c("", "NA", "NULL"), header=TRUE)
+dim(train)
+dim(test)
+```
+
+Most of these variables seem to be irrelevant because they have either no measurement associated to them or they are NULL.Therefore they can easely be removed as well as some predictors that will certainly not influence the way the excersice is performed (user_name, cvtd_timestamp, etc.). The new train set only contains 55 columns.
+
+```{r, echo=TRUE}
+train <- train[,c(3,4,8:11,37:49,60:68,84:86,102,113:124, 140,151:160)]
+dim(train)
+```
+
+##Data analysis
+Because of the number of variables and the nature of the problem, it is reasonable to assume that the system is not linear. Predictions are therefore made by constructing decision trees. 
+
+Random Forest allows to build multiple trees and select only the important variables. The -set.seed- command is used to ensure the reproducibility of the data because it allows to select always the same random sets. The analysis is performed on the train set, while the test set is only used for predictions.
+
+```{r, echo=TRUE}
+library(randomForest)
+set.seed(131)
+library(randomForest)
+fit <- randomForest(classe~.,data=train, type = 'classification', importance = TRUE)
+print(fit)
+varImpPlot(fit, main = "Important variables") 
+score <- predict(fit,newdata=test)
+print(score)
+```
+
+The confusion matrix shows that the model is 99.8% accurate.
+
+##Cross validation & Conclusion
+Finally, another estimate of the error is performed via cross validation. For this purpose the train set is partitioned in two subsets: newtrain, used for the model and newtest, used for the predictions. The column -classe- of the latter dataset is then compared with the score to evaluate the error and so the accuracy of the model.
+
+```{r, echo=TRUE}
+library(caret)
+inTrain <- createDataPartition(train$classe, p=0.75, list=F)
+newtrain <- train[inTrain,]
+newtest <- train[-inTrain,]
+fit2 <- randomForest(classe~.,data=newtrain, type = 'classification', importance = TRUE)
+newscore <- predict(fit2,newdata=newtest)
+matrix <-confusionMatrix(newtest$classe, newscore)
+matrix$table
+accur <- sum(newscore == newtest$classe) / length(newscore)
+print(accur)
+```
+By partitioning the sample the same level off accuracy is reached.
